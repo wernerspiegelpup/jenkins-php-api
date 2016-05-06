@@ -142,8 +142,7 @@ class Jenkins
      */
     public function get($url, $depth = 1, $params = array(), array $curlOpts = [], $raw = false)
     {
-//        $url = str_replace(' ', '%20', sprintf('%s' . $url . '?depth=' . $depth, $this->_baseUrl));
-        $url = sprintf('%s', $this->_baseUrl) . $url . '?depth=' . $depth;
+        $url = sprintf("%s%s?depth=%u", $this->_baseUrl, $url, $depth);
         if ($params) {
             foreach ($params as $key => $val) {
                 $url .= '&' . $key . '=' . $val;
@@ -193,7 +192,7 @@ class Jenkins
      */
     public function post($url, $parameters = [], array $curlOpts = [])
     {
-        $url = sprintf('%s', $this->_baseUrl) . $url;
+        $url = $this->_baseUrl . $url;
 
         $curl = curl_init($url);
         if ($curlOpts) {
@@ -214,6 +213,50 @@ class Jenkins
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
         $return = curl_exec($curl);
+
+        return (curl_errno($curl)) ?: $return;
+    }
+
+    /**
+     * @param string       $url
+     * @param array|string $parameters
+     * @param array        $curlOpts
+     *
+     * @throws RuntimeException
+     * @return bool
+     */
+    public function head($url, $parameters = [], array $curlOpts = [])
+    {
+        $url = $this->_baseUrl . $url;
+
+        $curl = curl_init($url);
+        if ($curlOpts) {
+            curl_setopt_array($curl, $curlOpts);
+        }
+        curl_setopt($curl, CURLOPT_CUSTOMREQUEST, 'HEAD');
+
+        if (is_array($parameters)) {
+            $parameters = http_build_query($parameters);
+        }
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $parameters);
+
+        $headers = (isset($curlOpts[CURLOPT_HTTPHEADER])) ? $curlOpts[CURLOPT_HTTPHEADER] : array();
+
+        if ($this->areCrumbsEnabled()) {
+            $headers[] = $this->getCrumbHeader();
+        }
+
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($curl, CURLOPT_HEADER, true); // header will be at output
+        $return = curl_exec($curl);
+
+        $info = curl_getinfo($curl);
+        curl_close($curl); // close cURL handler
+
+        if (!empty($info['http_code']) && (in_array($info['http_code'], [200, 302]))) {
+            return true;
+        }
 
         return (curl_errno($curl)) ?: $return;
     }

@@ -43,6 +43,11 @@ class Job extends AbstractItem
         return sprintf('job/%s/api/json', rawurlencode($this->_jobName));
     }
 
+    public function getWorkspace()
+    {
+        return new Workspace($this->_jobName, $this->_jenkins);
+    }
+
     /**
      * @return Build[]
      */
